@@ -1,155 +1,126 @@
-# Ingestão e Busca Semântica com LangChain e Postgres
+# Ingestão de PDF e busca semântica
 
-## Objetivo
+Implementação do [desafio Full Cycle](https://github.com/devfullcycle/mba-ia-desafio-ingestao-busca), com Python, LangChain, PostgreSQL e pgVector. O PDF original do desafio está incluído.
 
-Você deve entregar um software capaz de:
-
-- Ingestão: Ler um arquivo PDF e salvar suas informações em um banco de dados PostgreSQL com extensão pgVector.
-- Busca: Permitir que o usuário faça perguntas via linha de comando (CLI) e receba respostas baseadas apenas no conteúdo do PDF.
-
-## Exemplo no CLI
-
-Faça sua pergunta:
-
-```
-PERGUNTA: Qual o faturamento da Empresa SuperTechIABrazil?
-RESPOSTA: O faturamento foi de 10 milhões de reais.
-
----
-
-Perguntas fora do contexto:
-
-PERGUNTA: Quantos clientes temos em 2024?
-RESPOSTA: Não tenho informações necessárias para responder sua pergunta.
-```
-
-## Tecnologias obrigatórias
-
-- Linguagem: Python
-- Framework: LangChain
-- Banco de dados: PostgreSQL + pgVector
-- Execução do banco de dados: Docker & Docker Compose (docker-compose fornecido no repositório de exemplo)
-
-## Pacotes recomendados
-
-- Split: `from langchain_text_splitters import RecursiveCharacterTextSplitter`
-- Embeddings (OpenAI): `from langchain_openai import OpenAIEmbeddings`
-- Embeddings (Gemini): `from langchain_google_genai import GoogleGenerativeAIEmbeddings`
-- PDF: `from langchain_community.document_loaders import PyPDFLoader`
-- Ingestão: `from langchain_postgres import PGVector`
-- Busca: `similarity_search_with_score(query, k=10)`
-
-## OpenAI
-
-- Crie uma API Key da OpenAI.
-- Você vai precisar de um modelo de embeddings e de um modelo de LLM para responder. Consulte a documentação oficial da OpenAI para ver os modelos disponíveis.
-
-## Gemini
-
-- Crie uma API Key da Google.
-- Você vai precisar de um modelo de embeddings e de um modelo de LLM para responder. Consulte a documentação oficial do Google para ver os modelos disponíveis.
-
-Os limites de requisições gratuitas dos modelos podem mudar com frequência. Para informações atualizadas, consulte a documentação oficial do Google.
-
-## Escolha dos modelos
-
-Este desafio não fixa modelos. Nomes e versões mudam com frequência e alguns são descontinuados, então faz parte do desafio consultar a documentação oficial do provedor que você escolher, ver quais modelos estão disponíveis no momento e selecionar os que atendem ao objetivo. Para o volume deste desafio, os modelos mais leves e baratos de cada provedor são suficientes.
-
-Atenção: modelos de embedding diferentes geram vetores com dimensões diferentes. A tabela de vetores é criada na primeira ingestão, já com a dimensão do modelo que você escolheu. Se você trocar de modelo de embeddings depois disso, a ingestão passa a falhar por incompatibilidade de dimensão. Nesse caso é responsabilidade sua apagar a collection existente (ou o volume do banco) e refazer a ingestão do zero com o novo modelo.
+- `src/ingest.py`: PyPDFLoader → chunks de até 1.000 caracteres, overlap configurado em 150 → embeddings → PostgreSQL.
+- `src/search.py`: vetoriza a pergunta, recupera até 10 chunks com `similarity_search_with_score(query, k=10)` e chama a LLM com o prompt do enunciado.
+- `src/chat.py`: interação pelo terminal; `sair`, `exit`, `quit`, Ctrl+C ou Ctrl+D encerram.
+- `src/config.py`, `providers.py`, `store.py`: configuração, clientes e armazenamento.
 
 ## Requisitos
 
-### 1. Ingestão do PDF
+Python 3.12 (versão validada), Docker Engine com Docker Compose v2 e uma chave com acesso aos modelos escolhidos. Não é necessário ter chaves dos três provedores. Os serviços de IA podem cobrar por uso; disponibilidade e cotas dependem da conta.
 
-- O PDF deve ser dividido em chunks de 1000 caracteres com overlap de 150.
-- Cada chunk deve ser convertido em embedding.
-- Os vetores devem ser armazenados no banco de dados PostgreSQL com pgVector.
+## Configuração
 
-### 2. Consulta via CLI
-
-Criar um script Python para simular um chat no terminal.
-
-Passos ao receber uma pergunta:
-
-- Vetorizar a pergunta.
-- Buscar os 10 resultados mais relevantes (k=10) no banco vetorial.
-- Montar o prompt e chamar a LLM.
-- Retornar a resposta ao usuário.
-
-Prompt a ser utilizado:
-
-```
-CONTEXTO:
-{resultados concatenados do banco de dados}
-
-REGRAS:
-- Responda somente com base no CONTEXTO.
-- Se a informação não estiver explicitamente no CONTEXTO, responda:
-  "Não tenho informações necessárias para responder sua pergunta."
-- Nunca invente ou use conhecimento externo.
-- Nunca produza opiniões ou interpretações além do que está escrito.
-
-EXEMPLOS DE PERGUNTAS FORA DO CONTEXTO:
-Pergunta: "Qual é a capital da França?"
-Resposta: "Não tenho informações necessárias para responder sua pergunta."
-
-Pergunta: "Quantos clientes temos em 2024?"
-Resposta: "Não tenho informações necessárias para responder sua pergunta."
-
-Pergunta: "Você acha isso bom ou ruim?"
-Resposta: "Não tenho informações necessárias para responder sua pergunta."
-
-PERGUNTA DO USUÁRIO:
-{pergunta do usuário}
-
-RESPONDA A "PERGUNTA DO USUÁRIO"
-```
-
-## Estrutura obrigatória do projeto
-
-Faça um fork do repositório para utilizar a estrutura abaixo: https://github.com/devfullcycle/mba-ia-desafio-ingestao-busca
-
-```
-├── docker-compose.yml
-├── requirements.txt      # Dependências
-├── .env.example          # Template das variáveis de ambiente
-├── src/
-│   ├── ingest.py         # Script de ingestão do PDF
-│   ├── search.py         # Script de busca
-│   ├── chat.py           # CLI para interação com usuário
-├── document.pdf          # PDF para ingestão
-└── README.md             # Instruções de execução
-```
-
-## VirtualEnv para Python
-
-Crie e ative um ambiente virtual antes de instalar dependências:
-
-```
+```bash
 python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.lock.txt
+cp .env.example .env
 ```
 
-## Ordem de execução
+`requirements.txt` declara dependências diretas; `requirements.lock.txt` registra as versões resolvidas e testadas. No Ubuntu, se `venv` falhar por falta de `ensurepip`, instale o pacote `python3-venv` correspondente ao seu Python.
 
-1. Subir o banco de dados:
+Preencha **uma** das chaves no `.env`. O provedor será detectado automaticamente. Se preencher mais de uma, defina `AI_PROVIDER=openai`, `google` ou `openrouter`. Variáveis exportadas no terminal têm prioridade sobre o `.env`.
 
-```
+| Provedor | Variável | LLM padrão | Embeddings padrão |
+|---|---|---|---|
+| OpenAI | `OPENAI_API_KEY` | `gpt-4.1-mini` | `text-embedding-3-small` |
+| Google | `GOOGLE_API_KEY` | `gemini-3.5-flash-lite` | `gemini-embedding-001` |
+| OpenRouter | `OPENROUTER_API_KEY` | `deepseek/deepseek-v4-flash` | `openai/text-embedding-3-small` |
+
+No OpenRouter, **ambos** os modelos são acessados com a chave OpenRouter. Não precisa de uma chave OpenAI. DeepSeek gera respostas; o modelo de embeddings gera vetores.
+
+Também é possível deixar `OPENROUTER_API_KEY` vazio e configurar `OPENROUTER_API_KEY_FILE=/caminho/seguro/chave.txt`. O arquivo deve conter somente a chave. Não versione esse arquivo. `.env`, ambientes virtuais e caches estão no `.gitignore`.
+
+Para mudar modelos, preencha `LLM_MODEL` e/ou `EMBEDDING_MODEL`. Deixe vazios para usar os padrões. Use os IDs do provedor escolhido; no OpenRouter, eles incluem o prefixo do fornecedor. Ao mudar de provedor, remova overrides do provedor anterior.
+
+## Execução
+
+```bash
+# 1. Banco (espere ficar healthy)
 docker compose up -d
-```
+docker compose ps
 
-2. Executar ingestão do PDF:
-
-```
+# 2. Ingestão
 python src/ingest.py
-```
 
-3. Rodar o chat:
-
-```
+# 3. Chat
 python src/chat.py
 ```
 
-## Entregável
+O serviço `bootstrap_vector_ext` terminar com código 0 é normal: ele cria a extensão e encerra. `PGVector` também garante sua criação. O banco usa o Compose do repositório original, com a porta restrita ao computador local e sem nome fixo de container.
 
-Repositório público no GitHub contendo todo o código-fonte e README com instruções claras de execução do projeto.
+Exemplo baseado na primeira página do PDF incluído:
+
+```text
+PERGUNTA: Qual o faturamento da Alfa Agronegócio Indústria?
+RESPOSTA: O faturamento da Alfa Agronegócio Indústria é de R$ 85.675.568,77.
+
+PERGUNTA: Qual é a capital da França?
+RESPOSTA: Não tenho informações necessárias para responder sua pergunta.
+```
+
+O texto exato da resposta factual pode variar. Não há histórico de conversa: cada pergunta deve ser completa. O prompt exige fatos explícitos e recusa perguntas sem evidência; isso reduz alucinações, mas não constitui garantia matemática de comportamento da LLM.
+
+## PDF e coleções
+
+`PDF_PATH` é relativo à raiz do projeto ou absoluto. PDFs digitalizados sem camada de texto precisam de OCR antes da ingestão; este projeto não executa OCR. Metadados armazenam o nome do arquivo, página (começa em 1) e índice do chunk.
+
+Cada ingestão **substitui o PDF da coleção atual**. Repetir o comando não duplica os chunks. Embeddings são gerados antes de iniciar a transação que substitui os registros; falhas nessa etapa preservam o documento anterior. Não execute ingestões concorrentes na mesma coleção.
+
+O nome físico da coleção combina `COLLECTION_NAME` com um hash do provedor e do modelo de embeddings. Mudar apenas a LLM mantém os dados. Mudar o modelo de embeddings ou o provedor seleciona outra coleção, que precisa de nova ingestão. Mesmo dimensões iguais não tornam espaços de embeddings intercambiáveis.
+
+`PGVector` compartilha uma tabela entre coleções. Este projeto usa a coluna `vector` sem dimensão fixa (`embedding_length` omitido), para permitir dimensões diferentes em coleções distintas. A busca é filtrada pela coleção. Isso evita o conflito de dimensão descrito no enunciado, sem misturar vetores de modelos diferentes. Não há índice ANN; a busca exata é suficiente para o PDF do desafio.
+
+Se reaproveitar um banco criado por outra implementação com dimensão fixa, use um banco novo. Para apagar **todos os dados deste Compose** e recriar do zero (ação destrutiva):
+
+```bash
+docker compose down -v
+docker compose up -d
+python src/ingest.py
+```
+
+## Testes
+
+Testes locais, sem chave e sem banco:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Testes com PostgreSQL real e embeddings determinísticos (sem consumir API):
+
+```bash
+TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/rag python -m unittest discover -s tests -v
+```
+
+Teste de integração real com banco e provedor configurados (consome API e substitui apenas uma coleção de teste temporária):
+
+```bash
+python tests/integration.py
+```
+
+O teste usa o PDF incluído, verifica persistência, reingestão sem duplicação, recuperação e respostas dentro/fora do contexto. A coleção temporária é apagada ao final. Consulte `VALIDACAO.md` para o que efetivamente foi executado.
+
+## Solução de problemas
+
+- **Banco indisponível**: confira `docker compose ps`, `docker compose logs postgres` e `DATABASE_URL`. O padrão é `postgresql+psycopg://postgres:postgres@localhost:5432/rag`.
+- **Porta 5432 ocupada**: altere a porta do host no Compose e a mesma porta em `DATABASE_URL`.
+- **Coleção vazia**: execute a ingestão usando o mesmo provedor, modelo de embeddings e `COLLECTION_NAME` do chat.
+- **Erro de autenticação, limite ou modelo**: confira a chave, saldo/cota e acesso ao ID escolhido. O CLI imprime a classe da falha sem revelar a mensagem bruta do SDK, que pode conter dados sensíveis.
+- **PDF alterado**: execute a ingestão novamente.
+- **Tabela de PDF complexa**: a extração de texto pode perder relações entre colunas; inspecione o texto extraído para documentos diferentes do exemplo.
+
+## Documentação consultada
+
+Modelos e APIs verificados em 20/10/2026; IDs e acesso podem mudar.
+
+- [OpenAI: embeddings](https://developers.openai.com/api/docs/guides/embeddings)
+- [OpenAI: GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini)
+- [Google: Gemini 3.5 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
+- [Google: embeddings](https://ai.google.dev/gemini-api/docs/embeddings)
+- [OpenRouter: embeddings](https://openrouter.ai/docs/api_reference/embeddings)
+- [OpenRouter: DeepSeek V4 Flash](https://openrouter.ai/deepseek/deepseek-v4-flash)
+- [LangChain: PGVector](https://docs.langchain.com/oss/python/integrations/vectorstores/pgvector)
