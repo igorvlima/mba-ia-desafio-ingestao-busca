@@ -36,4 +36,3 @@ Esses cinco casos passaram nesta execução. Eles não garantem que uma LLM nunc
 ## Pendente
 - Docker Compose: o ambiente de desenvolvimento não possui Docker; o Compose do repositório original foi preservado, restringindo a porta ao localhost e removendo o nome fixo do container. A imagem configurada é PostgreSQL 17; sua execução ainda precisa ser validada em Docker.
 - OpenAI e Google: configurados, mas não testados com credenciais reais desses provedores.
-
