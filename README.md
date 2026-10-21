@@ -50,7 +50,7 @@ python src/ingest.py
 python src/chat.py
 ```
 
-O serviço `bootstrap_vector_ext` terminar com código 0 é normal: ele cria a extensão e encerra. `PGVector` também garante sua criação. O banco usa o Compose do repositório original, com a porta restrita ao computador local e sem nome fixo de container.
+O serviço `bootstrap_vector_ext` terminar com código 0 é normal: ele cria a extensão e encerra. `PGVector` também garante sua criação. O banco usa o Compose do repositório original, com a porta restrita ao computador local, sem nome fixo de container e com a chamada do serviço auxiliar corrigida para executar `psql` diretamente.
 
 Exemplo baseado na primeira página do PDF incluído:
 
